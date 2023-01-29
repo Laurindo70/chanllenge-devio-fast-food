@@ -2,7 +2,7 @@ CREATE TABLE produto(
    codigo_produto SERIAL PRIMARY KEY,
    nome_produto VARCHAR(150) NOT NULL,
    valor DOUBLE PRECISION NOT NULL,
-   ativo BOOLEAN NOT NOT,
+   ativo BOOLEAN NOT NULL,
    criado_em timestamp without time zone DEFAULT now(),
    atualizado_em timestamp without time zone DEFAULT now()
 );

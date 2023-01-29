@@ -78,7 +78,8 @@ class ProdutoController {
 
          await Produto.create({
             nome_produto,
-            valor
+            valor,
+            ativo: true
          });
 
          return response.status(200).send({ mensagem: 'Produto cadastrado com sucesso.' });
