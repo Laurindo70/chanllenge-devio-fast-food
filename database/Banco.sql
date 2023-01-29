@@ -2,7 +2,7 @@ CREATE TABLE produto(
    codigo_produto SERIAL PRIMARY KEY,
    nome_produto VARCHAR(150) NOT NULL,
    valor DOUBLE PRECISION NOT NULL,
-   ativo BOOLEAN NOT NULL,
+   ativo BOOLEAN DEFAULT TRUE,
    criado_em timestamp without time zone DEFAULT now(),
    atualizado_em timestamp without time zone DEFAULT now()
 );
@@ -12,8 +12,9 @@ CREATE TABLE pedido(
    valor_total DOUBLE PRECISION NOT NULL,
    observacao TEXT,
    troco DOUBLE PRECISION NOT NULL,
-   pedido_finalizado BOOLEAN NOT NULL,
-   preparo_finalizado BOOLEAN NOT NULL,
+   pedido_finalizado BOOLEAN DEFAULT FALSE,
+   preparo_finalizado BOOLEAN DEFAULT FALSE,
+   cancelado BOOLEAN DEFAULT FALSE,
    criado_em timestamp without time zone DEFAULT now(),
    atualizado_em timestamp without time zone DEFAULT now()
 );
@@ -29,6 +30,7 @@ CREATE TABLE produto_pedido(
    codigo_produto INTEGER NOT NULL,
    codigo_pedido INTEGER NOT NULL,
    quantidade integer NOT NULL,
+   removido BOOLEAN DEFAULT FALSE,
    criado_em timestamp without time zone DEFAULT now(),
    atualizado_em timestamp without time zone DEFAULT now(),
    FOREIGN KEY(codigo_produto) REFERENCES produto(codigo_produto),

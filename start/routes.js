@@ -10,6 +10,8 @@ Rotas.group(() => {
   Rotas.put('/inativar-produto/codigo-produto=:codigoProduto', 'ProdutoController.inativarProduto');
   Rotas.put('/ativar-produto/codigo-produto=:codigoProduto', 'ProdutoController.ativarProduto');
   Rotas.post('/adicionar-produto-pedido/codigo-pedido=:codigoPedido?', 'PedidoController.adicionarProduto');  
+  Rotas.put('/remover-produto-pedido/codigo-pedido=:codigoPedido/codigo-produto=:codigoProduto', 'PedidoController.removerProduto');  
+  Rotas.post('/fechar-pedido/codigo-pedido=:codigoPedido', 'PedidoController.fecharPedido');  
 
 }).prefix('api');
 
