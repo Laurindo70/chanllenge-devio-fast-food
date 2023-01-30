@@ -12,6 +12,7 @@ Rotas.group(() => {
   Rotas.post('/adicionar-produto-pedido/codigo-pedido=:codigoPedido?', 'PedidoController.adicionarProduto');  
   Rotas.put('/remover-produto-pedido/codigo-pedido=:codigoPedido/codigo-produto=:codigoProduto', 'PedidoController.removerProduto');  
   Rotas.post('/fechar-pedido/codigo-pedido=:codigoPedido', 'PedidoController.fecharPedido');  
+  Rotas.put('/finalizar-preparo/codigo-pedido=:codigoPedido', 'PedidoController.finalizarPedido')
 
 }).prefix('api');
 
