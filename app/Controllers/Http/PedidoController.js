@@ -5,7 +5,7 @@ const { validateAll } = use('Validator');
 const Database = use('Database');
 const Pedido = use('App/Models/Pedido');
 const ProdutoPedido = use('App/Models/ProdutoPedido');
-
+const WebSocketController = require('../Http/WebSocketController');
 class PedidoController {
 
    /**
@@ -24,14 +24,17 @@ class PedidoController {
   *         format: int64
   *       - name: codigo_produto
   *         description: Código do Produto.
-  *         in: formData
+  *         in: body
   *         required: true
-  *         type: integer
-  *       - name: qtd
+  *         type: body
+  *         schema: 
+  *            - '$ref': '#/definitions/ProdutoPedido'
+  *       - name: nome_cliente
   *         description: quantidade de Produtos.
-  *         in: formData
+  *         in: object
   *         required: true
-  *         type: integer
+  *         type: string
+  *         format: object
   *     responses:
   *       200:
   *         description: Mensagem de sucesso
@@ -118,11 +121,13 @@ class PedidoController {
          }
 
          const mensagemErro = {
-            'codigo_produto.required': 'É necessario selecionar o produto'
+            'codigo_produto.required': 'É necessario selecionar o produto',
+            'nome_cliente.required': 'É necessario o nome do cliente para finalizar o pedido'
          }
 
          const validacao = await validateAll(request.all(), {
-            codigo_produto: 'required'
+            codigo_produto: 'required',
+            nome_cliente: 'required'
          }, mensagemErro);
 
          let mensagem = validacao.messages();
@@ -166,10 +171,10 @@ class PedidoController {
             throw Error('Erro ao adicionar produtos ao pedido.');
          }
 
-         const dados_pedido = await transacao.raw(`select codigo_pedido, valor_total from pedido where codigo_pedido = ${codigoPedido};`);
+         const dados_pedido = await transacao.raw(`select codigo_pedido, valor_total from pedido where codigo_pedido = ${pedido.$attributes.codigo_pedido};`);
          const produtos_pedido = await transacao.raw(`select produto_pedido.codigo_produto, produto.nome_produto, produto.valor as valor_unidade, sum(produto_pedido.quantidade) as quantidade, (sum(produto_pedido.quantidade)*produto.valor) as valor
          from produto_pedido inner join produto on produto.codigo_produto=produto_pedido.codigo_produto
-         where produto_pedido.codigo_pedido = ${codigoPedido} and produto_pedido.removido = FALSE GROUP BY produto_pedido.codigo_produto, produto.nome_produto, produto.valor;`)
+         where produto_pedido.codigo_pedido = ${pedido.$attributes.codigo_pedido} and produto_pedido.removido = FALSE GROUP BY produto_pedido.codigo_produto, produto.nome_produto, produto.valor;`)
 
          await transacao.commit();
          return response.status(200).send({ mensagem: 'Produto adicionado com sucesso.', pedido: dados_pedido.rows[0], produtos: produtos_pedido.rows });
@@ -245,11 +250,11 @@ class PedidoController {
          }
 
          const pedido = await transacao.raw(`select valor_total from pedido where codigo_pedido = ${codigoPedido}`);
-         let valor_total;
+         let valor_total = 0;
          let devolver_troco = false;
 
          for (let i = 0; i < forma_pagamento.length; i++) {
-            valor_total = + (+forma_pagamento.valor);
+            valor_total = + forma_pagamento[i].valor;
             const tipo_pagamento = await transacao.raw(`select recebe_troco from tipo_pagamento where id = ${forma_pagamento[i].tipo_pagamento}`);
             devolver_troco = (tipo_pagamento.rows[0].recebe_troco ? true : devolver_troco);
          }
@@ -266,6 +271,7 @@ class PedidoController {
             .table('pedido')
             .where('codigo_pedido', codigoPedido)
             .update({
+               troco: valor_total - pedido.rows[0].valor_total,
                observacao: observacao,
                pedido_finalizado: true,
                atualizado_em: new Date()
@@ -275,8 +281,10 @@ class PedidoController {
          const produtos_pedido = await transacao.raw(`select produto_pedido.codigo_produto, produto.nome_produto, produto.valor as valor_unidade, sum(produto_pedido.quantidade) as quantidade, (sum(produto_pedido.quantidade)*produto.valor) as valor
          from produto_pedido inner join produto on produto.codigo_produto=produto_pedido.codigo_produto
          where produto_pedido.codigo_pedido = ${codigoPedido} and produto_pedido.removido = FALSE GROUP BY produto_pedido.codigo_produto, produto.nome_produto, produto.valor;`);
-         
+
          await transacao.commit();
+         const socket = new WebSocketController();
+         await socket.pedidosCozinha();
          return response.status(200).send({ pedido: dados_pedido.rows[0], produtos: produtos_pedido.rows });
 
       } catch (error) {
@@ -286,17 +294,19 @@ class PedidoController {
       }
    }
 
-   async finalizarPedido({ request, response, params }){
+   async finalizarPedido({ request, response, params }) {
       try {
-         
+
          const { codigoPedido } = params;
 
          await Database
             .table('pedido')
             .where('codigo_pedido', codigoPedido)
-            .update({ preparo_finalizado: true,
-               atualizado_em: new Date() });
-         
+            .update({
+               preparo_finalizado: true,
+               atualizado_em: new Date()
+            });
+
          const pedido = await Database.raw(`select nome_cliente from pedido where codigo_pedido = ${codigoPedido};`);
 
          return response.status(200).send({ mensagem: `Pedido ${codigoPedido} do cliente ${pedido.rows[0].nome_cliente} já pronto para retirada.` });
@@ -304,6 +314,24 @@ class PedidoController {
       } catch (error) {
          console.log(error);
          return response.status(500).send({ mensagem: 'Erro ao finalizar preparo do pedido.' });
+      }
+   }
+
+   async cancelarPedido({ request, response, params }) {
+      try {
+
+         const { codigoPedido } = params;
+
+         await Database
+            .table('pedido')
+            .where('codigo_pedido', codigoPedido)
+            .update({ cancelado: true, atualizado_em: new Date() });
+
+         return response.status(200).send({ mensagem: 'Pedido cancelado com sucesso.' });
+
+      } catch (error) {
+         console.log(error);
+         return response.status(500).send({ mensagem: 'Erro ao cancelar pedido.' });
       }
    }
 

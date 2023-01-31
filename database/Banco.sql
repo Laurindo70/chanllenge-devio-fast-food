@@ -12,6 +12,7 @@ CREATE TABLE pedido(
    valor_total DOUBLE PRECISION NOT NULL,
    observacao TEXT,
    troco DOUBLE PRECISION NOT NULL,
+   nome_cliente varchar(150) NOT NULL,
    pedido_finalizado BOOLEAN DEFAULT FALSE,
    preparo_finalizado BOOLEAN DEFAULT FALSE,
    cancelado BOOLEAN DEFAULT FALSE,
@@ -22,6 +23,7 @@ CREATE TABLE pedido(
 CREATE TABLE tipo_pagamento(
    id SERIAL PRIMARY KEY,
    nome_tipo_pagamento VARCHAR(100) NOT NULL,
+   recebe_troco BOOLEAN DEFAULT FALSE,
    criado_em timestamp without time zone DEFAULT now(),
    atualizado_em timestamp without time zone DEFAULT now()
 );
