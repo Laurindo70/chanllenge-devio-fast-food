@@ -7,4 +7,4 @@ Ws.channel('chat', ({ socket }) => {
 });
 
 Ws.channel('pedidoCozinha', 'PedidoController');
-// Ws.channel('pedidoFinalizado', 'PedidoController');
+Ws.channel('pedidoFinalizado', 'PedidoController');

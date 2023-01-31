@@ -6,6 +6,7 @@ const Database = use('Database');
 const Pedido = use('App/Models/Pedido');
 const ProdutoPedido = use('App/Models/ProdutoPedido');
 const WebSocketController = require('../Http/WebSocketController');
+const Pagamento = use('App/Models/Pagamento');
 class PedidoController {
 
    /**
@@ -249,13 +250,20 @@ class PedidoController {
             return response.status(417).send({ mensagem: 'É necessario selecionar a forma de pagamento.' });
          }
 
-         const pedido = await transacao.raw(`select valor_total from pedido where codigo_pedido = ${codigoPedido}`);
+         const pedido = await transacao.raw(`select valor_total, pedido_finalizado from pedido where codigo_pedido = ${codigoPedido}`);
          let valor_total = 0;
          let devolver_troco = false;
 
+         if(!pedido.rows[0]){
+            return response.status(404).send({ mensagem: 'Esse pedido não possui cadastro.' });
+         }
+
+         if(pedido.rows[0].pedido_finalizado){
+            return response.status(417).send({ mensagem: 'Esse pedido já foi fechado e enviado para a cozinha para preparo.' });
+         }
+
          for (let i = 0; i < forma_pagamento.length; i++) {
-            console.log(valor_total);
-            valor_total =+ forma_pagamento[i].valor;
+            valor_total = + forma_pagamento[i].valor;
             const tipo_pagamento = await transacao.raw(`select recebe_troco from tipo_pagamento where id = ${forma_pagamento[i].tipo_pagamento}`);
             devolver_troco = (tipo_pagamento.rows[0].recebe_troco ? true : devolver_troco);
          }
@@ -277,6 +285,14 @@ class PedidoController {
                pedido_finalizado: true,
                atualizado_em: new Date()
             });
+
+         for (let i = 0; i < forma_pagamento.length; i++) {
+            await Pagamento.create({
+               codigo_pedido: codigoPedido,
+               tipo_pagamento_id: forma_pagamento[i].tipo_pagamento,
+               valor: forma_pagamento[i].valor
+            }, transacao);
+         }
 
          const dados_pedido = await transacao.raw(`select codigo_pedido, valor_total, troco, observacao, TO_CHAR(criado_em, 'DD/MM/YYYY HH24:MI') AS data from pedido where codigo_pedido = ${codigoPedido};`);
          const produtos_pedido = await transacao.raw(`select produto_pedido.codigo_produto, produto.nome_produto, produto.valor as valor_unidade, sum(produto_pedido.quantidade) as quantidade, (sum(produto_pedido.quantidade)*produto.valor) as valor
@@ -309,6 +325,9 @@ class PedidoController {
             });
 
          const pedido = await Database.raw(`select nome_cliente from pedido where codigo_pedido = ${codigoPedido};`);
+
+         const socket = new WebSocketController();
+         await socket.pedidosFinalizado();
 
          return response.status(200).send({ mensagem: `Pedido ${codigoPedido} do cliente ${pedido.rows[0].nome_cliente} já pronto para retirada.` });
 
