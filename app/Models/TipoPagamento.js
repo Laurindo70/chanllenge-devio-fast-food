@@ -6,22 +6,17 @@ const Model = use('Model')
 /** 
 *  @swagger
 *  definitions:
-*    Tipo Pagamento:
+*    TipoPagamento:
 *      type: object
 *      properties:
-*        id:
-*          type: int
-*        nome_tipo_pagamento:
-*          type: string
-*        criado_em:
-*           type: datetime
-*        atualizado_em:
-*           type: datetime
+*        tipo_pagamento:
+*          type: integer
+*        valor:
+*          type: number
+*          format: float
 *      required:
-*        - id
+*        - tipo_pagamento:
 *        - nome_tipo_pagamento
-*        - criado_em
-*        - atualizado_em
 */
 
 class TipoPagamento extends Model {

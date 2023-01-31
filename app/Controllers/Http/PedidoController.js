@@ -18,41 +18,43 @@ class PedidoController {
   *     summary: Cadastro de produtos no pedido.
   *     parameters:
   *       - name: codigoPedido
-  *         description: código do pedido caso vá adicionar novo produto ao pedido.
+  *         description: Código do pedido.
   *         in: path
   *         required: false
   *         type: integer
   *         format: int64
   *       - name: codigo_produto
-  *         description: Código do Produto.
+  *         description: Código do produto.
   *         in: body
-  *         required: true
+  *         required: false
   *         type: body
-  *         schema: 
-  *            - '$ref': '#/definitions/ProdutoPedido'
-  *       - name: nome_cliente
-  *         description: quantidade de Produtos.
-  *         in: object
-  *         required: true
-  *         type: string
-  *         format: object
+  *         schema:
+  *               $ref: "#/definitions/Pedido"
   *     responses:
   *       200:
   *         description: Mensagem de sucesso
   *         example:
-  *           - mensagem: Produto adicionado com sucesso ao pedido.
-  *           - mensagem: Pedido iniciado com sucesso.
+  *           mensagem: Produto adicionado com sucesso.
+  *           pedido:
+  *               codigo_pedido: 0
+  *               valor_total: 10
+  *           produtos:
+  *               - codigo_produto: 0
+  *                 nome_produto: exemplo
+  *                 valor_unidade: 0
+  *                 quantidade: 0
+  *                 valor: 0    
   *       500:
-  *         description: Mensagem de Erro
+  *         description: Mensagem de erro interno do servidor.
   *         example:
-  *           mensagem: Erro ao cadastrar novo produto.
+  *           - mensagem: Erro ao adicionar produtos ao pedido.
+  *           - mensagem: Erro ao atualizar o valor do pedido.
+  *           - mensagem: Erro ao cadastrar pedido.
   *       417:
-  *         description: Mensagem de Erro
+  *         description: Mensagem de erro de entrada de dados.
   *         example:
-  *           - mensagem: É necessario preencher o nome do produto.
-  *           - mensagem: Já existe um produto com esse nome cadastrado,
-  *           - mensagem: É necessario preencher o valor do produto,
-  *           - mensagem: O valor inserido não é um numero.
+  *           - mensagem: É necessario selecionar o produto.
+  *           - mensagem: É necessario o nome do cliente para finalizar o pedido.
   */
 
    async adicionarProduto({ request, response, params }) {
@@ -66,11 +68,13 @@ class PedidoController {
          if (!isNaN(parseFloat(codigoPedido)) && isFinite(codigoPedido)) {
 
             const mensagemErro = {
-               'codigo_produto.required': 'É necessario selecionar o produto'
+               'codigo_produto.required': 'É necessario selecionar o produto',
+               'quantidade.required': 'É necessario colocar a quantidade do produto.'
             }
 
             const validacao = await validateAll(request.all(), {
-               codigo_produto: 'required'
+               codigo_produto: 'required',
+               quantidade: 'required'
             }, mensagemErro);
 
             let mensagem = validacao.messages();
@@ -79,7 +83,7 @@ class PedidoController {
                return response.status(417).send({ mensagem: mensagem[0].message });
             }
 
-            const { codigo_produto, qtd } = request.all();
+            const { codigo_produto, quantidade } = request.all();
 
             const dados_produto = await Database.raw(`select valor from produto where codigo_produto = ${codigo_produto}`);
             const valorPedido = await Database.raw(`select valor_total from pedido where codigo_pedido = ${codigoPedido}`);
@@ -92,7 +96,7 @@ class PedidoController {
                await ProdutoPedido.create({
                   codigo_produto,
                   codigo_pedido: codigoPedido,
-                  quantidade: qtd
+                  quantidade: quantidade
                }, transacao);
             } catch (error) {
                await transacao.rollback();
@@ -104,7 +108,7 @@ class PedidoController {
                await Database
                   .table('pedido')
                   .where('codigo_pedido', codigoPedido)
-                  .update({ valor_total: (+valorPedido.rows[0].valor_total) + (qtd * (+dados_produto.rows[0].valor)) });
+                  .update({ valor_total: (+valorPedido.rows[0].valor_total) + (quantidade * (+dados_produto.rows[0].valor)) });
             } catch (error) {
                await transacao.rollback();
                console.log(error);
@@ -123,12 +127,14 @@ class PedidoController {
 
          const mensagemErro = {
             'codigo_produto.required': 'É necessario selecionar o produto',
-            'nome_cliente.required': 'É necessario o nome do cliente para finalizar o pedido'
+            'nome_cliente.required': 'É necessario o nome do cliente para finalizar o pedido',
+            'quantidade.required': 'É necessario colocar a quantidade do produto.'
          }
 
          const validacao = await validateAll(request.all(), {
             codigo_produto: 'required',
-            nome_cliente: 'required'
+            nome_cliente: 'required',
+            quantidade: 'required'
          }, mensagemErro);
 
          let mensagem = validacao.messages();
@@ -137,7 +143,7 @@ class PedidoController {
             return response.status(417).send({ mensagem: mensagem[0].message });
          }
 
-         const { codigo_produto, qtd, nome_cliente } = request.all();
+         const { codigo_produto, quantidade, nome_cliente } = request.all();
          let pedido;
 
          const dados_produto = await Database.raw(`select valor from produto where codigo_produto = ${codigo_produto}`);
@@ -148,7 +154,7 @@ class PedidoController {
 
          try {
             pedido = await Pedido.create({
-               valor_total: qtd * (+dados_produto.rows[0].valor),
+               valor_total: quantidade * (+dados_produto.rows[0].valor),
                observacao: null,
                troco: 0,
                nome_cliente
@@ -164,7 +170,7 @@ class PedidoController {
             await ProdutoPedido.create({
                codigo_produto,
                codigo_pedido: pedido.$attributes.codigo_pedido,
-               quantidade: qtd
+               quantidade: quantidade
             }, transacao);
          } catch (error) {
             await transacao.rollback();
@@ -186,6 +192,35 @@ class PedidoController {
       }
 
    }
+
+   /**
+  * @swagger
+  * /api/remover-produto-pedido/codigo-pedido={codigoPedido}/codigo-produto={codigoProduto} :
+  *   put:
+  *     tags:
+  *       - Pedido
+  *     summary: Remoção de produto do pedido.
+  *     parameters:
+  *       - name: codigoPedido
+  *         description: Código do pedido.
+  *         in: path
+  *         required: true
+  *         type: integer
+  *       - name: codigoProduto
+  *         description: Código do produto.
+  *         in: path
+  *         required: true
+  *         type: integer
+  *     responses:
+  *       200:
+  *         description: Mensagem de sucesso.
+  *         example:
+  *           mensagem: Produto removido com sucesso
+  *       500:
+  *         description: Mensagem de Erro
+  *         example:
+  *           mensagem: Erro ao retirar produto do pedido.
+  */
 
    async removerProduto({ request, response, params }) {
 
@@ -236,6 +271,48 @@ class PedidoController {
       }
    }
 
+   /**
+* @swagger
+* /api/fechar-pedido/codigo-pedido={codigoPedido} :
+*   post:
+*     tags:
+*       - Pedido
+*     summary: Fechar pedido para o preparo.
+*     parameters:
+*       - name: codigoPedido
+*         description: Código do pedido.
+*         in: path
+*         required: true
+*         type: integer
+*       - name: forma_pagamento
+*         description: Pagamento do pedido.
+*         in: body
+*         required: false
+*         type: body
+*         schema:
+*            $ref: "#/definitions/Pagamento"
+*     responses:
+*       200:
+*         description: Mensagem de sucesso.
+*         example:
+*           pedido: 
+*               codigp_pedido: 0
+*               valor_total: 0
+*               troco: 0
+*               observacao: null
+*               data: 00/00/0000 00:00
+*           produtos:
+*              - codigo_produto: 0
+*                nome_produto: 'exemplo'
+*                valor_unidade: 0
+*                quantidade: 0
+*                valor: 0
+*       500:
+*         description: Mensagem de Erro
+*         example:
+*           mensagem: Erro ao retirar produto do pedido.
+*/
+
    async fecharPedido({ request, response, params }) {
 
       const transacao = await Database.beginTransaction();
@@ -254,11 +331,11 @@ class PedidoController {
          let valor_total = 0;
          let devolver_troco = false;
 
-         if(!pedido.rows[0]){
+         if (!pedido.rows[0]) {
             return response.status(404).send({ mensagem: 'Esse pedido não possui cadastro.' });
          }
 
-         if(pedido.rows[0].pedido_finalizado){
+         if (pedido.rows[0].pedido_finalizado) {
             return response.status(417).send({ mensagem: 'Esse pedido já foi fechado e enviado para a cozinha para preparo.' });
          }
 
@@ -311,7 +388,31 @@ class PedidoController {
       }
    }
 
-   async finalizarPedido({ request, response, params }) {
+   /**
+  * @swagger
+  * /api/finalizar-preparo/codigo-pedido={codigoPedido} :
+  *   put:
+  *     tags:
+  *       - Pedido
+  *     summary: Finalização do preparo do pedido.
+  *     parameters:
+  *       - name: codigoPedido
+  *         description: Código do pedido.
+  *         in: path
+  *         required: true
+  *         type: integer
+  *     responses:
+  *       200:
+  *         description: Mensagem de sucesso.
+  *         example:
+  *           mensagem: Pedido 0 do cliente string já pronto para retirada.
+  *       500:
+  *         description: Mensagem de Erro
+  *         example:
+  *           mensagem: Erro ao finalizar preparo do pedido.
+  */
+
+   async finalizarPreparo({ request, response, params }) {
       try {
 
          const { codigoPedido } = params;
@@ -337,6 +438,30 @@ class PedidoController {
       }
    }
 
+   /**
+  * @swagger
+  * /api/cancelar-preparo/codigo-pedido={codigoPedido} :
+  *   put:
+  *     tags:
+  *       - Pedido
+  *     summary: Finalização do preparo do pedido.
+  *     parameters:
+  *       - name: codigoPedido
+  *         description: Código do pedido.
+  *         in: path
+  *         required: true
+  *         type: integer
+  *     responses:
+  *       200:
+  *         description: Mensagem de sucesso.
+  *         example:
+  *           mensagem: Pedido cancelado com sucesso.
+  *       500:
+  *         description: Mensagem de Erro
+  *         example:
+  *           mensagem: Erro ao cancelar pedido.
+  */
+
    async cancelarPedido({ request, response, params }) {
       try {
 
@@ -352,6 +477,40 @@ class PedidoController {
       } catch (error) {
          console.log(error);
          return response.status(500).send({ mensagem: 'Erro ao cancelar pedido.' });
+      }
+   }
+
+   /**
+  * @swagger
+  * /api/listar-tipos-pagamento :
+  *   get:
+  *     tags:
+  *       - Pedido
+  *     summary: Lista de tipos de pagamentos.
+  *     responses:
+  *       200:
+  *         description: Mensagem de sucesso.
+  *         example:
+  *           - id: 0
+  *             nome_tipo_pagamento: teste
+  *           - id: 0
+  *             nome_tipo_pagamento: teste
+  *       500:
+  *         description: Mensagem de Erro
+  *         example:
+  *           mensagem: Erro ao listar os tipos de pagamentos.
+  */
+   
+   async tipoPagamento({ request, response }){
+      try {
+         
+         const tipos = await Database.raw(`select id, nome_tipo_pagamento FROM tipo_pagamento;`);
+
+         return response.status(200).send(tipos.rows);
+
+      } catch (error) {
+         console.log(error);
+         return response.status(500).send({ mensagem: 'Erro ao listar os tipos de pagamentos.' });
       }
    }
 

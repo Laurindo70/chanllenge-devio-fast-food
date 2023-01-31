@@ -9,25 +9,12 @@ const Model = use('Model')
 *    Pagamento:
 *      type: object
 *      properties:
-*        id:
-*          type: int
-*        codigo_pedido:
-*          type: int
-*        tipo_pgamento_id:
-*          type: int
-*        valor:
-*          type: numeric
-*        criado_em:
-*          type: datetime
-*        atualizado_em:
-*          type: datetime
+*        forma_pagamento:
+*             type: array
+*             items: 
+*               $ref: "#/definitions/TipoPagamento"
 *      required:
-*        - id
-*        - codigo_pedido
-*        - tipo_pgamento_id
-*        - valor
-*        - criado_em
-*        - atualizado_em
+*        - forma_pagamento
 */
 
 class Pagamento extends Model {
