@@ -8,8 +8,8 @@ class PedidoController {
     this.request = request
   }
 
-  async onPedido() {
-    console.log('contectado');
+  async onPedidoCozinha() {
+    console.log('conectado');
     let pedidos = [];
     const dados_pedidos = await Database.raw(`select codigo_pedido, nome_cliente from pedido where pedido_finalizado = true and preparo_finalizado = FALSE and cancelado = FALSE;`);
 
@@ -24,8 +24,12 @@ class PedidoController {
       pedidos.push(pedido);
     }
     console.log(pedidos);
-    this.socket.broadcastToAll('pedido', pedidos);
+    this.socket.broadcastToAll('pedidoCozinha', pedidos);
   }
+
+  // async onPedidoFinalizado(){
+
+  // }
 
   onClose() {
     this.socket.broadcastToAll('drop:connection');

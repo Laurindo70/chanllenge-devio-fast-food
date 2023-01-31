@@ -254,12 +254,13 @@ class PedidoController {
          let devolver_troco = false;
 
          for (let i = 0; i < forma_pagamento.length; i++) {
-            valor_total = + forma_pagamento[i].valor;
+            console.log(valor_total);
+            valor_total =+ forma_pagamento[i].valor;
             const tipo_pagamento = await transacao.raw(`select recebe_troco from tipo_pagamento where id = ${forma_pagamento[i].tipo_pagamento}`);
             devolver_troco = (tipo_pagamento.rows[0].recebe_troco ? true : devolver_troco);
          }
 
-         if (!devolver_troco && (valor_total - pedido.rows[0].valor_total) > 0) {
+         if (!devolver_troco && ((valor_total - (+pedido.rows[0].valor_total)) > 0)) {
             return response.status(417).send({ mensagem: 'Os valores inseridos são maiores que o valor total, e não será gerado nenhum troco pois nenhuma forma de pagamento escolhida é dinheiro.' });
          }
 

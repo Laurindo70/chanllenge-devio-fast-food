@@ -20,10 +20,10 @@ class WebSocketController {
          pedidos.push(pedido);
       }
 
-      const topic = Ws.getChannel('pedido').topic('pedido');
+      const topic = Ws.getChannel('pedidoCozinha').topic('pedidoCozinha');
 
       if(topic){
-         topic.broadcast('pedido', { pedidos });
+         topic.broadcast('pedidoCozinha', { pedidos });
       }
    }
 

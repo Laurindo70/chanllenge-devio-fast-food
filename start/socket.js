@@ -6,4 +6,5 @@ Ws.channel('chat', ({ socket }) => {
   console.log('user joined with %s socket id', socket.id)
 });
 
-Ws.channel('pedido', 'PedidoController');
+Ws.channel('pedidoCozinha', 'PedidoController');
+// Ws.channel('pedidoFinalizado', 'PedidoController');
